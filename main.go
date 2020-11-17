@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	SES_SIZE_LIMIT = 10000000
-	DEFAULT_ADDR   = ":2500"
+	SesSizeLimit = 10000000
+	DefaultAddr  = ":2500"
 )
 
 var sesClient *ses.SES
@@ -38,8 +38,8 @@ func (e *Envelope) BeginData() error {
 
 func (e *Envelope) Write(line []byte) error {
 	e.b.Write(line)
-	if e.b.Len() > SES_SIZE_LIMIT { // SES limitation
-		log.Println("message size %d exceeds SES limit of %d", e.b.Len(), SES_SIZE_LIMIT)
+	if e.b.Len() > SesSizeLimit { // SES limitation
+		log.Printf("message size %d exceeds SES limit of %d\n", e.b.Len(), SesSizeLimit)
 		return smtpd.SMTPError("554 5.5.1 Error: maximum message size exceeded")
 	}
 	return nil
@@ -62,14 +62,14 @@ func (e *Envelope) Close() error {
 	_, err := sesClient.SendRawEmail(r)
 	if err != nil {
 		log.Printf("ERROR: ses: %v", err)
-		return smtpd.SMTPError(fmt.Sprintf("554 5.5.1 Error: %v", err))
+		return smtpd.SMTPError(fmt.Sprintf("451 4.5.1 Temporary server error. Please try again later: %v", err))
 	}
 	return err
 }
 
 func main() {
-	sesClient = ses.New(session.New())
-	addr := DEFAULT_ADDR
+	sesClient = ses.New(session.Must(session.NewSession()))
+	addr := DefaultAddr
 
 	if len(os.Args) == 2 {
 		addr = os.Args[1]
