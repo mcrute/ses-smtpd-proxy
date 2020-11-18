@@ -56,3 +56,4 @@ follow the conventions of the existing API.
 
 ## Contributors
 * Mike Crute (@mcrute)
+* Thomas Dupas (@thomasdupas)
