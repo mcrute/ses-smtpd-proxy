@@ -19,6 +19,7 @@ const (
 var sesClient *ses.SES
 
 type Envelope struct {
+	from  string
 	rcpts []*string
 	b     bytes.Buffer
 }
@@ -50,12 +51,13 @@ func (e *Envelope) logMessageSend() {
 	for i := range e.rcpts {
 		dr[i] = *e.rcpts[i]
 	}
-	log.Printf("sending message to %+v", dr)
+	log.Printf("sending message from %+v to %+v", e.from, dr)
 }
 
 func (e *Envelope) Close() error {
 	e.logMessageSend()
 	r := &ses.SendRawEmailInput{
+		Source:       &e.from,
 		Destinations: e.rcpts,
 		RawMessage:   &ses.RawMessage{Data: e.b.Bytes()},
 	}
@@ -80,7 +82,7 @@ func main() {
 	s := &smtpd.Server{
 		Addr: addr,
 		OnNewMail: func(c smtpd.Connection, from smtpd.MailAddress) (smtpd.Envelope, error) {
-			return &Envelope{}, nil
+			return &Envelope{from: from.Email()}, nil
 		},
 	}
 	log.Printf("ListenAndServe on %s", addr)
