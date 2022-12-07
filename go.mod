@@ -1,6 +1,6 @@
-module github.com/mcrute/ses-smtpd-proxy
+module code.crute.us/mcrute/ses-smtpd-proxy
 
-go 1.16
+go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.38.10
