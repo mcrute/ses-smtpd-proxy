@@ -8,8 +8,6 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     env:
       IMAGE_NAME: ses-smtpd-proxy
     steps:
@@ -37,7 +35,7 @@ jobs:
           echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
           echo "IMAGE_VERSION=$(cat version.txt)" >> $GITHUB_ENV
 
-      - name: Build and scan image
+      - name: Build image
         run:  |  
          docker build --no-cache -t ${IMAGE_NAME} -t localimage:localtag .
 
