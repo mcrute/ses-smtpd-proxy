@@ -26,7 +26,10 @@ const (
 	DefaultAddr  = ":2500"
 )
 
-var sesClient *ses.SES
+var (
+	version   string
+	sesClient *ses.SES
+)
 
 var (
 	emailSent = promauto.NewCounter(prometheus.CounterOpts{
@@ -217,8 +220,14 @@ func main() {
 	prometheusBind := flag.String("prometheus-bind", ":2501", "Address/port on which to bind Prometheus server")
 	enableVault := flag.Bool("enable-vault", false, "Enable fetching AWS IAM credentials from a Vault server")
 	vaultPath := flag.String("vault-path", "", "Full path to Vault credential (ex: \"aws/creds/my-mail-user\")")
+	showVersion := flag.Bool("version", false, "Show program version")
 
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("ses-smtp-proxy version %s\n", version)
+		return
+	}
 
 	sesClient, err = makeSesClient(*enableVault, *vaultPath)
 	if err != nil {

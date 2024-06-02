@@ -2,7 +2,9 @@ BINARY ?= ses-smtpd-proxy
 DOCKER_IMAGE ?= docker.crute.me/ses-email-proxy:latest
 
 $(BINARY): main.go go.sum smtpd/smtpd.go
-	CGO_ENABLED=0 go build -o $@ $<
+	CGO_ENABLED=0 go build \
+		-ldflags "-X main.version=$(shell git describe --long --tags --dirty --always)"  \
+		-o $@ $<
 
 .PHONY: docker
 docker: $(BINARY)
