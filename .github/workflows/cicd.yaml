@@ -1,0 +1,54 @@
+name: "cicd build"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    branches: [ master ]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ses-smtpd-proxy
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          list-files: json
+          predicate-quantifier: 'every'
+          filters: |
+            images:
+              - '**/version.txt'
+
+      - name: Verify Image Version Bump
+        if: steps.filter.outputs.images != 'true'
+        run:  |  
+          echo "No Image tag bumps found, failing build"
+          exit 1
+
+      - name: Set Env
+        run: |
+          echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$(cat version.txt)" >> $GITHUB_ENV
+
+      - name: Build image
+        run:  |  
+         docker build --no-cache -t ${IMAGE_NAME} -t localimage:localtag .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'localimage:localtag'
+
+      - name: Publish to Quay on Master
+        if: github.event.pull_request.merged == true
+        run:  |
+         docker login quay.io -u ${{ secrets.QUAY_USERNAME }} -p "${{ secrets.QUAY_PASSWORD }}"
+         docker tag ${IMAGE_NAME} quay.io/swimlane/${IMAGE_NAME}:${IMAGE_VERSION}
+         docker tag ${IMAGE_NAME} quay.io/swimlane/${IMAGE_NAME}:latest
+         docker push quay.io/swimlane/${IMAGE_NAME}:${IMAGE_VERSION}
+         docker push quay.io/swimlane/${IMAGE_NAME}:latest
