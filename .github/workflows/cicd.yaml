@@ -35,12 +35,11 @@ jobs:
       - name: Set Env
         run: |
           echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
-          echo "IMAGE_VERSION=$(cat ${IMAGE_NAME}/version.txt)" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$(cat version.txt)" >> $GITHUB_ENV
 
       - name: Build and scan image
         run:  |  
-         docker build --no-cache -t ${IMAGE_NAME} -t localimage:localtag ./${IMAGE_NAME}
+         docker build --no-cache -t ${IMAGE_NAME} -t localimage:localtag .
 
       - name: Lacework scan
         uses: lacework/lw-scanner-action@v1.4.1
