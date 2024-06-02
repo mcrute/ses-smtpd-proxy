@@ -34,7 +34,6 @@ jobs:
 
       - name: Set Env
         run: |
-          IMAGE_NAME=$(dirname ${IMAGE_NAME})
           echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "IMAGE_VERSION=$(cat ${IMAGE_NAME}/version.txt)" >> $GITHUB_ENV
