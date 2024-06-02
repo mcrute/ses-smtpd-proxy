@@ -39,13 +39,10 @@ jobs:
         run:  |  
          docker build --no-cache -t ${IMAGE_NAME} -t localimage:localtag .
 
-      - name: Lacework scan
-        uses: lacework/lw-scanner-action@v1.4.1
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
         with:
-          LW_ACCOUNT_NAME: ${{ secrets.LW_ACCOUNT_NAME }}
-          LW_ACCESS_TOKEN: ${{ secrets.LW_ACCESS_TOKEN }}
-          IMAGE_NAME: localimage
-          IMAGE_TAG: localtag
+          image-ref: 'localimage:localtag'
 
       - name: Publish to Quay on Master
         if: github.event.pull_request.merged == true
