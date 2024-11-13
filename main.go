@@ -21,15 +21,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var version string
+
 const (
 	SesSizeLimit = 10000000
 	DefaultAddr  = ":2500"
-)
-
-var (
-	version              string
-	sesClient            *ses.SES
-	configurationSetName *string
 )
 
 var (
@@ -61,9 +57,11 @@ var (
 )
 
 type Envelope struct {
-	from  string
-	rcpts []*string
-	b     bytes.Buffer
+	from          string
+	client        *ses.SES
+	configSetName *string
+	rcpts         []*string
+	b             bytes.Buffer
 }
 
 func (e *Envelope) AddRecipient(rcpt smtpd.MailAddress) error {
@@ -101,12 +99,12 @@ func (e *Envelope) logMessageSend() {
 
 func (e *Envelope) Close() error {
 	r := &ses.SendRawEmailInput{
-		ConfigurationSetName: configurationSetName,
+		ConfigurationSetName: e.configSetName,
 		Source:               &e.from,
 		Destinations:         e.rcpts,
 		RawMessage:           &ses.RawMessage{Data: e.b.Bytes()},
 	}
-	_, err := sesClient.SendRawEmail(r)
+	_, err := e.client.SendRawEmail(r)
 	if err != nil {
 		log.Printf("ERROR: ses: %v", err)
 		emailError.With(prometheus.Labels{"type": "ses error"}).Inc()
@@ -194,7 +192,7 @@ func main() {
 	enableVault := flag.Bool("enable-vault", false, "Enable fetching AWS IAM credentials from a Vault server")
 	vaultPath := flag.String("vault-path", "", "Full path to Vault credential (ex: \"aws/creds/my-mail-user\")")
 	showVersion := flag.Bool("version", false, "Show program version")
-	configurationSetName = flag.String("configuration-set-name", "", "Configuration set name with which SendRawEmail will be invoked")
+	configurationSetName := flag.String("configuration-set-name", "", "Configuration set name with which SendRawEmail will be invoked")
 
 	flag.Parse()
 
@@ -203,7 +201,7 @@ func main() {
 		return
 	}
 
-	sesClient, err = makeSesClient(*enableVault, *vaultPath)
+	sesClient, err := makeSesClient(*enableVault, *vaultPath)
 	if err != nil {
 		log.Fatalf("Error creating AWS session: %s", err)
 	}
@@ -229,7 +227,11 @@ func main() {
 	s := &smtpd.Server{
 		Addr: addr,
 		OnNewMail: func(c smtpd.Connection, from smtpd.MailAddress) (smtpd.Envelope, error) {
-			return &Envelope{from: from.Email()}, nil
+			return &Envelope{
+				from:          from.Email(),
+				client:        sesClient,
+				configSetName: configurationSetName,
+			}, nil
 		},
 	}
 
