@@ -27,8 +27,9 @@ const (
 )
 
 var (
-	version   string
-	sesClient *ses.SES
+	version              string
+	sesClient            *ses.SES
+	configurationSetName *string
 )
 
 var (
@@ -100,9 +101,10 @@ func (e *Envelope) logMessageSend() {
 
 func (e *Envelope) Close() error {
 	r := &ses.SendRawEmailInput{
-		Source:       &e.from,
-		Destinations: e.rcpts,
-		RawMessage:   &ses.RawMessage{Data: e.b.Bytes()},
+		ConfigurationSetName: configurationSetName,
+		Source:               &e.from,
+		Destinations:         e.rcpts,
+		RawMessage:           &ses.RawMessage{Data: e.b.Bytes()},
 	}
 	_, err := sesClient.SendRawEmail(r)
 	if err != nil {
@@ -221,6 +223,7 @@ func main() {
 	enableVault := flag.Bool("enable-vault", false, "Enable fetching AWS IAM credentials from a Vault server")
 	vaultPath := flag.String("vault-path", "", "Full path to Vault credential (ex: \"aws/creds/my-mail-user\")")
 	showVersion := flag.Bool("version", false, "Show program version")
+	configurationSetName = flag.String("configuration-set-name", "", "Configuration set name with which SendRawEmail will be invoked")
 
 	flag.Parse()
 
@@ -246,6 +249,10 @@ func main() {
 		ps := &http.Server{Addr: *prometheusBind, Handler: sm}
 		sm.Handle("/metrics", promhttp.Handler())
 		go ps.ListenAndServe()
+	}
+
+	if *configurationSetName == "" {
+		configurationSetName = nil
 	}
 
 	s := &smtpd.Server{
