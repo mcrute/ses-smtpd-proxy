@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"code.crute.us/mcrute/ses-smtpd-proxy/smtpd"
 	"github.com/aws/aws-sdk-go/aws"
@@ -115,7 +118,24 @@ func (e *Envelope) Close() error {
 	return err
 }
 
-func renewSecret(vc *api.Client, s *api.Secret) error {
+func logRenewal(renewal *api.RenewOutput) {
+	canRenew := "renewable"
+	if !renewal.Secret.Renewable {
+		canRenew = "not renewable"
+	}
+	leaseID := renewal.Secret.LeaseID
+	if leaseID == "" && renewal.Secret.MountType == "token" {
+		leaseID = "vault_token"
+	}
+	log.Printf("Successfully renewed lease '%s' at %s for %s, %s",
+		leaseID,
+		renewal.RenewedAt.Format(time.RFC3339),
+		time.Duration(renewal.Secret.LeaseDuration)*time.Second,
+		canRenew,
+	)
+}
+
+func renewSecret(vc *api.Client, s *api.Secret, credentialError chan<- error) error {
 	w, err := vc.NewLifetimeWatcher(&api.LifetimeWatcherInput{Secret: s})
 	if err != nil {
 		return err
@@ -128,11 +148,11 @@ func renewSecret(vc *api.Client, s *api.Secret) error {
 			case err := <-w.DoneCh():
 				if err != nil {
 					credentialRenewalError.Inc()
-					log.Fatalf("Error renewing credential: %s", err)
+					credentialError <- err
 				}
 			case renewal := <-w.RenewCh():
 				credentialRenewalSuccess.Inc()
-				log.Printf("Successfully renewed: %#v", renewal)
+				logRenewal(renewal)
 			}
 		}
 	}()
@@ -140,7 +160,7 @@ func renewSecret(vc *api.Client, s *api.Secret) error {
 	return nil
 }
 
-func getVaultSecret(path string) (credentials.Value, error) {
+func getVaultSecret(ctx context.Context, path string, credentialError chan<- error) (credentials.Value, error) {
 	var r credentials.Value
 
 	vc, err := api.NewClient(api.DefaultConfig())
@@ -157,10 +177,10 @@ func getVaultSecret(path string) (credentials.Value, error) {
 		if err != nil {
 			return r, fmt.Errorf("unable to initialize AppRole auth method: %w", err)
 		}
-		if loginSecret, err := vc.Auth().Login(context.Background(), appRoleAuth); err != nil {
+		if loginSecret, err := vc.Auth().Login(ctx, appRoleAuth); err != nil {
 			return r, fmt.Errorf("unable to login to AppRole auth method: %w", err)
 		} else {
-			if err := renewSecret(vc, loginSecret); err != nil {
+			if err := renewSecret(vc, loginSecret, credentialError); err != nil {
 				return r, err
 			}
 		}
@@ -187,15 +207,15 @@ func getVaultSecret(path string) (credentials.Value, error) {
 	r.AccessKeyID = keyId.(string)
 	r.SecretAccessKey = secretKey.(string)
 
-	return r, renewSecret(vc, secret)
+	return r, renewSecret(vc, secret, credentialError)
 }
 
-func makeSesClient(enableVault bool, vaultPath string) (*ses.SES, error) {
+func makeSesClient(ctx context.Context, enableVault bool, vaultPath string, credentialError chan<- error) (*ses.SES, error) {
 	var err error
 	var s *session.Session
 
 	if enableVault {
-		cred, err := getVaultSecret(vaultPath)
+		cred, err := getVaultSecret(ctx, vaultPath, credentialError)
 		if err != nil {
 			return nil, err
 		}
@@ -216,6 +236,9 @@ func makeSesClient(enableVault bool, vaultPath string) (*ses.SES, error) {
 func main() {
 	var err error
 
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
 	disablePrometheus := flag.Bool("disable-prometheus", false, "Disables prometheus metrics server")
 	prometheusBind := flag.String("prometheus-bind", ":2501", "Address/port on which to bind Prometheus server")
 	enableVault := flag.Bool("enable-vault", false, "Enable fetching AWS IAM credentials from a Vault server")
@@ -230,7 +253,8 @@ func main() {
 		return
 	}
 
-	sesClient, err := makeSesClient(*enableVault, *vaultPath)
+	credentialError := make(chan error, 2)
+	sesClient, err := makeSesClient(ctx, *enableVault, *vaultPath, credentialError)
 	if err != nil {
 		log.Fatalf("Error creating AWS session: %s", err)
 	}
@@ -264,8 +288,19 @@ func main() {
 		},
 	}
 
-	log.Printf("ListenAndServe on %s", addr)
-	if err := s.ListenAndServe(); err != nil {
-		log.Fatalf("ListenAndServe: %v", err)
+	go func() {
+		log.Printf("ListenAndServe on %s", addr)
+		if err := s.ListenAndServe(); err != nil {
+			log.Printf("Error in ListenAndServe: %v", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Printf("SIGTERM/SIGINT received, shutting down")
+		os.Exit(0)
+	case err := <-credentialError:
+		log.Fatalf("Error renewing credential: %s", err)
+		os.Exit(1)
 	}
 }
