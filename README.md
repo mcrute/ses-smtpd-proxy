@@ -20,7 +20,7 @@ credential using the AWS back-end. It will also renew this credential as
 long as possible. This functionality is not enabled by default but can
 be enabled with command line flags and environment variables.
 
-The [standard environment variables](https://developer.hashicorp.com/vault/docs/commands#environme nt-variables)
+The [standard environment variables](https://developer.hashicorp.com/vault/docs/commands#environment-variables)
 are supported. Minimally ``VAULT_ADDR`` must be specified as a URL to the
 Vault server. Additionally, to support
 [AppRole](https://developer.hashicorp.com/vault/docs/auth/approle) authentication
