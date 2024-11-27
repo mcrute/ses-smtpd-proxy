@@ -20,8 +20,7 @@ credential using the AWS back-end. It will also renew this credential as
 long as possible. This functionality is not enabled by default but can
 be enabled with command line flags and environment variables.
 
-The [standard environment variables](
-https://developer.hashicorp.com/vault/docs/commands#environme nt-variables)
+The [standard environment variables](https://developer.hashicorp.com/vault/docs/commands#environme nt-variables)
 are supported. Minimally ``VAULT_ADDR`` must be specified as a URL to the
 Vault server. Additionally, to support
 [AppRole](https://developer.hashicorp.com/vault/docs/auth/approle) authentication
@@ -92,7 +91,7 @@ please:
 * Update the readme, if necessary
 * Follow the coding style of the current code-base
 * Ensure that your code is formatted by gofmt
-* Validate that your changes work with Go 1.11+
+* Validate that your changes work with Go 1.21+
 
 All code is reviewed before acceptance and changes may be requested to better
 follow the conventions of the existing API.
