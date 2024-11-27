@@ -115,6 +115,31 @@ func (e *Envelope) Close() error {
 	return err
 }
 
+func renewSecret(vc *api.Client, s *api.Secret) error {
+	w, err := vc.NewLifetimeWatcher(&api.LifetimeWatcherInput{Secret: s})
+	if err != nil {
+		return err
+	}
+	go w.Start()
+
+	go func() {
+		for {
+			select {
+			case err := <-w.DoneCh():
+				if err != nil {
+					credentialRenewalError.Inc()
+					log.Fatalf("Error renewing credential: %s", err)
+				}
+			case renewal := <-w.RenewCh():
+				credentialRenewalSuccess.Inc()
+				log.Printf("Successfully renewed: %#v", renewal)
+			}
+		}
+	}()
+
+	return nil
+}
+
 func getVaultSecret(path string) (credentials.Value, error) {
 	var r credentials.Value
 
@@ -132,8 +157,12 @@ func getVaultSecret(path string) (credentials.Value, error) {
 		if err != nil {
 			return r, fmt.Errorf("unable to initialize AppRole auth method: %w", err)
 		}
-		if _, err := vc.Auth().Login(context.Background(), appRoleAuth); err != nil {
+		if loginSecret, err := vc.Auth().Login(context.Background(), appRoleAuth); err != nil {
 			return r, fmt.Errorf("unable to login to AppRole auth method: %w", err)
+		} else {
+			if err := renewSecret(vc, loginSecret); err != nil {
+				return r, err
+			}
 		}
 	}
 
@@ -158,7 +187,7 @@ func getVaultSecret(path string) (credentials.Value, error) {
 	r.AccessKeyID = keyId.(string)
 	r.SecretAccessKey = secretKey.(string)
 
-	return r, nil
+	return r, renewSecret(vc, secret)
 }
 
 func makeSesClient(enableVault bool, vaultPath string) (*ses.SES, error) {
