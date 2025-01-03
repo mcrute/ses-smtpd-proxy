@@ -1,5 +1,8 @@
 BINARY ?= ses-smtpd-proxy
-DOCKER_IMAGE ?= docker.crute.me/ses-email-proxy:latest
+DOCKER_REGISTRY ?= docker.crute.me	
+DOCKER_IMAGE_NAME ?= ses-email-proxy
+DOCKER_TAG ?= latest
+DOCKER_IMAGE ?= ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
 
 $(BINARY): main.go go.sum smtpd/smtpd.go
 	CGO_ENABLED=0 go build \
@@ -7,7 +10,7 @@ $(BINARY): main.go go.sum smtpd/smtpd.go
 		-o $@ $<
 
 .PHONY: docker
-docker: $(BINARY)
+docker:
 	docker build -t $(DOCKER_IMAGE) .
 
 .PHONY: publish

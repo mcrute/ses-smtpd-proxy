@@ -1,5 +1,6 @@
-Dockerfile
-go.mod
-go.sum
-main.go
-Makefile
+*
+!.git/
+!Makefile
+!go.mod
+!go.sum
+!**/*.go
