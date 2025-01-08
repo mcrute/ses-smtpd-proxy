@@ -1,5 +1,4 @@
 *
-!.git/
 !Makefile
 !go.mod
 !go.sum
