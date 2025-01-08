@@ -109,7 +109,12 @@ All code is reviewed before acceptance and changes may be requested to better
 follow the conventions of the existing API.
 
 ## Contributors
+This project is made possible by the contributions of the following
+individuals; listed here in the order they first contributed to the
+project.
+
 * Mike Crute (@mcrute)
 * Thomas Dupas (@thomasdupas)
 * Quentin Loos (@Kent1)
 * Moriyoshi Koizumi (@moriyoshi)
+* Jesse Mandel (@supergibbs)
