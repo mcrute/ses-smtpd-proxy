@@ -245,12 +245,24 @@ func main() {
 	vaultPath := flag.String("vault-path", "", "Full path to Vault credential (ex: \"aws/creds/my-mail-user\")")
 	showVersion := flag.Bool("version", false, "Show program version")
 	configurationSetName := flag.String("configuration-set-name", "", "Configuration set name with which SendRawEmail will be invoked")
+	enableHealthCheck := flag.Bool("enable-health-check", false, "Enable health check server")
+	healthCheckBind := flag.String("health-check-bind", ":3000", "Address/port on which to bind health check server")
 
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Printf("ses-smtp-proxy version %s\n", version)
 		return
+	}
+
+	if *enableHealthCheck {
+		sm := http.NewServeMux()
+		ps := &http.Server{Addr: *healthCheckBind, Handler: sm}
+		sm.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Content-Type", "application/json")
+			w.Write([]byte("{\"name\": \"ses-smtp-proxy\", \"status\": \"ok\", \"version\": \"" + version + "\"}"))
+		}))
+		go ps.ListenAndServe()
 	}
 
 	credentialError := make(chan error, 2)
