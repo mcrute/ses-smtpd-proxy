@@ -1,0 +1,23 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ses-smtpd-proxy
+spec:
+  selector:
+    matchLabels:
+      app: ses-smtpd-proxy
+  template:
+    metadata:
+      labels:
+        app: ses-smtpd-proxy
+    spec:
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: ses-smtpd-proxy
+      containers:
+      - name: ses-smtpd-proxy
+        image: quay.io/swimlane/ses-smtpd-proxy
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2500
+        resources: {}

@@ -1,0 +1,12 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "ses:SendRawEmail"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}
