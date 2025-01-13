@@ -2,9 +2,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-images:
-  - name: quay.io/swimlane/ses-smtpd-proxy
-    newTag: 0.2.0
+# images:
+#   - name: mcrute/ses-smtpd-proxy
+#     newTag: 0.2.0
 
 resources:
 - ./deployment.yaml
