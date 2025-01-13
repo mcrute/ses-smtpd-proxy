@@ -16,7 +16,7 @@ spec:
       serviceAccountName: ses-smtpd-proxy
       containers:
       - name: ses-smtpd-proxy
-        image: quay.io/swimlane/ses-smtpd-proxy
+        image: mcrute/ses-smtpd-proxy
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 2500
