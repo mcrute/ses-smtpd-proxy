@@ -136,6 +136,12 @@ func logRenewal(renewal *api.RenewOutput) {
 }
 
 func renewSecret(vc *api.Client, s *api.Secret, credentialError chan<- error) error {
+	// Don't attempt to renew a secret that can't be renewed otherwise
+	// LifetimeWatcher will fail to build.
+	if !s.Renewable {
+		return nil
+	}
+
 	w, err := vc.NewLifetimeWatcher(&api.LifetimeWatcherInput{Secret: s})
 	if err != nil {
 		return err
@@ -194,12 +200,23 @@ func getVaultSecret(ctx context.Context, path string, credentialError chan<- err
 		return r, fmt.Errorf("Vault returned no AWS secret")
 	}
 
-	keyId, ok := secret.Data["access_key"]
+	// If this is a KV secret then it will be nested within an additional
+	// level of JSON with a "data" top level key. If it's an AWS type
+	// credential it will not have that nesting. Otherwise the inner keys
+	// are expected to be the same. Noramalize that here.
+	var data map[string]any = secret.Data
+	if d, ok := secret.Data["data"]; ok {
+		if dd, ok := d.(map[string]any); ok {
+			data = dd
+		}
+	}
+
+	keyId, ok := data["access_key"]
 	if !ok {
 		return r, fmt.Errorf("Vault secret had no access_key")
 	}
 
-	secretKey, ok := secret.Data["secret_key"]
+	secretKey, ok := data["secret_key"]
 	if !ok {
 		return r, fmt.Errorf("Vault secret had no secret_key")
 	}
